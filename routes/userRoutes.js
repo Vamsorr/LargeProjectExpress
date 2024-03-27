@@ -11,18 +11,18 @@ const router = express.Router();
 router.post('/signup', async (req, res) => 
 {
     try {
-        const { username, password, email, phoneNum, location } = req.body;
+        const { username, password, email } = req.body;
         // Check if user already exists
         let existingUser = await User.findOne({ $or: [{ username }, { email }] });
         if (existingUser) {
             return res.status(409).send({ message: "User already exists" });
         }
         // Create a new user and save to database
-        const user = new User({ username, password, email, phoneNum, location });
+        const user = new User({ username, password, email});
         await user.save();
 
         // Respond with success
-        res.status(201).send({ message: "User created successfully" });
+        res.json(user);
     } catch (error) {
         res.status(500).send({ message: "Error creating user", error: error.message });
     }
@@ -38,8 +38,8 @@ router.post('/login', async (req, res) => {
         }
         // Generate a token and send it in the response to user, 
         // allows user authentication without needing to send username and password with every request
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
-        res.status(200).send({ token });
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.status(200).send({ user,token });
     } catch (error) {
         res.status(500).send({ message: "Error logging in", error: error.message });
     }
