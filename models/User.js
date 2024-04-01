@@ -55,7 +55,7 @@ const userSchema = new mongoose.Schema({
 
     directions:
     {
-      type: String,
+      type: [String],
       required: true,
     },
 
@@ -88,7 +88,11 @@ userSchema.methods.isValidPassword = async function(password)
     return await bcrypt.compare(password, this.password);
 };
 
-// Create a user model and export it
+// Create a user model and a recipe model
 const User = mongoose.model('User', userSchema);
+const Recipe = mongoose.model('Recipe', recipeScheme);
+
+// Export the user model and the recipe model
+module.exports = Recipe;
 module.exports = User;
 

@@ -25,9 +25,12 @@ app.use('/api/users', userRoutes);
 const expressSwagger = expressSwaggerGenerator(app);
 
 // Set Swagger options
-let options = {
-    swaggerDefinition: {
-        info: {
+let options = 
+{
+    swaggerDefinition: 
+    {
+        info: 
+        {
             description: 'This is a sample server',
             title: 'Swagger',
             version: '1.0.0',
@@ -37,7 +40,8 @@ let options = {
     },
     basedir: __dirname, //app absolute path
     files: ['./routes/*.js'], //Path to the API handle folder
-    route: {
+    route: 
+    {
         url: '/api-docs',
         docs: '/api-docs.json' //swagger file route
     }
@@ -48,10 +52,13 @@ expressSwagger(options)
 // Test MongoDB connection
 async function testMongoDBConnection() 
 {
-    try {
+    try 
+    {
         // Create a new MongoClient
-        const client = new MongoClient(process.env.MONGO_URI, {
-            serverApi: {
+        const client = new MongoClient(process.env.MONGO_URI, 
+            {
+            serverApi: 
+            {
                 version: ServerApiVersion.v1,
                 strict: true,
                 deprecationErrors: true,
@@ -61,26 +68,27 @@ async function testMongoDBConnection()
         // Connect to the MongoDB cluster
         await client.connect();
 
-        // Make the appropriate DB calls
+        // pinging the mongodb atlas cluser with newly created client
         await client.db("admin").command({ ping: 1 });
 
-        // Log a message to the console
+        // Log a message to the console if the connection is successful
         console.log("Pinged MongoDB Atlas. Successfully connected!");
 
         // Close the connection
         await client.close();
 
-        // Catch any errors and log them to the console
+        // if cant connect to the cluster, catch the error
     } catch (error) {
         console.error("Error connecting to MongoDB Atlas:", error);
     }
 }
-// Call the testMongoDBConnection function
+// Call the testMongoDBConnection function in order to test the connection
 testMongoDBConnection();
 
 // Start the server on port 3000
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, () => 
+{
     console.log(`Server running on http://localhost:${PORT}`);
 });
 
