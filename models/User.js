@@ -92,7 +92,7 @@ userSchema.methods.isValidPassword = async function(password)
 const User = mongoose.model('User', userSchema);
 const Recipe = mongoose.model('Recipe', recipeScheme);
 
-// Export the user model and the recipe model
+// Export the user model and the recipe model so that they can be used in other modules
 module.exports = Recipe;
 module.exports = User;
 
