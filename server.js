@@ -1,6 +1,7 @@
 // server.js
 // USE: "npm run devStart" to start the server
 
+// Import express, mongoose, and userRoutes
 const express = require('express');
 const mongoose = require('mongoose');
 const userRoutes = require('./routes/userRoutes'); // Import userRoutes
@@ -8,6 +9,7 @@ require('dotenv').config(); // To use environment variables from .env file
 const { MongoClient, ServerApiVersion } = require("mongodb"); // For testing MongoDB connection
 const expressSwaggerGenerator = require('express-swagger-generator'); // For Swagger documentation
 
+// Create an express app
 const app = express();
 app.use(express.json()); // Middleware to parse JSON bodies
 
@@ -40,12 +42,14 @@ let options = {
         docs: '/api-docs.json' //swagger file route
     }
 }
+// Initialize swagger-jsdoc -> returns validated swagger spec in json format
 expressSwagger(options)
 
 // Test MongoDB connection
 async function testMongoDBConnection() 
 {
     try {
+        // Create a new MongoClient
         const client = new MongoClient(process.env.MONGO_URI, {
             serverApi: {
                 version: ServerApiVersion.v1,
@@ -53,18 +57,28 @@ async function testMongoDBConnection()
                 deprecationErrors: true,
             },
         });
-        // Connect to MongoDB
+
+        // Connect to the MongoDB cluster
         await client.connect();
+
+        // Make the appropriate DB calls
         await client.db("admin").command({ ping: 1 });
+
+        // Log a message to the console
         console.log("Pinged MongoDB Atlas. Successfully connected!");
+
+        // Close the connection
         await client.close();
+
+        // Catch any errors and log them to the console
     } catch (error) {
         console.error("Error connecting to MongoDB Atlas:", error);
     }
 }
+// Call the testMongoDBConnection function
 testMongoDBConnection();
 
-// Start the server
+// Start the server on port 3000
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

@@ -10,19 +10,30 @@ const router = express.Router();
 // Signup endpoint
 router.post('/signup', async (req, res) => 
 {
+    // Get the username, password, and email from the request
     try {
+    
         const { username, password, email } = req.body;
-        // Check if user already exists
+
+        // Mongoose query to check if the user already exists, can match either username or email, boolean value
         let existingUser = await User.findOne({ $or: [{ username }, { email }] });
-        if (existingUser) {
+
+        // If the user already exists, return an error
+        if (existingUser) 
+        {
             return res.status(409).send({ message: "User already exists" });
         }
-        // Create a new user and save to database
+
+        // Create a new user
         const user = new User({ username, password, email});
+
+        // Save the user to the database
         await user.save();
 
-        // Respond with success
+        // saves the user to the database and returns the user object
         res.json(user);
+
+        // If an error occurs, return it to the client
     } catch (error) {
         res.status(500).send({ message: "Error creating user", error: error.message });
     }
@@ -30,17 +41,29 @@ router.post('/signup', async (req, res) =>
 
 // Login endpoint
 router.post('/login', async (req, res) => {
-    try {
+    try 
+    {
+        // Get the username and password from the request
         const { username, password } = req.body;
+
+        // Find the user in the database
         const user = await User.findOne({ username });
+
+        // If the user is not found, or the password is incorrect, return an error
         if (!user || !(await user.isValidPassword(password))) {
             return res.status(401).send({ message: "Invalid username or password" });
         }
-        // Generate a token and send it in the response to user, 
-        // allows user authentication without needing to send username and password with every request
+        
+        // If the user is found and the password is correct, create a token
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        // Respond with the user and token
         res.status(200).send({ user,token });
-    } catch (error) {
+
+    // If an error occurs, return it to the client
+    } catch (error) 
+    {
+        // Log the error to the console
         res.status(500).send({ message: "Error logging in", error: error.message });
     }
 });

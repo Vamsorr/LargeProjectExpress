@@ -6,41 +6,85 @@ const bcrypt = require('bcryptjs');
 
 // Create a user schema
 const userSchema = new mongoose.Schema({
-    name: {
+    name: 
+    {
       type: String,
       required: true,
       unique: true
     },
-    email: {
+    email: 
+    {
       type: String,
       required: true,
       unique: true
     },
-    password: {
+    password: 
+    {
       type: String,
       required: true
     },
-    username: {
+    username: 
+    {
       type: String,
       required: true,
       unique: true
     }
-    // Add more fields as needed
+    
   })
-// Hash the password before saving the user model
+
+  // Create a recipe schema
+  const recipeSchema = new mongoose.Schema({
+    recipeName:
+    {
+      type: String,
+      required: true,
+      unique: true
+    },
+
+    category:
+    {
+      type: String,
+      required: true,
+    },
+
+    ingredients:
+    {
+      type: String,
+      required: true,
+    },
+
+    directions:
+    {
+      type: String,
+      required: true,
+    },
+
+    nutritionalFacts:
+    {
+      type: String,
+      required: true,
+    }
+  })
+
+// Add a pre-save hook to hash the password before saving it to the database
 userSchema.pre('save', async function(next)
  {
-    // Hash the password before saving the user model
+    // if password is changed, Hash the password before saving it to the database
     if (this.isModified('password')) 
     {
+        // Hash the password using bcrypt
         this.password = await bcrypt.hash(this.password, 8);
     }
+
+    // Continue with the save operation
     next();
 });
 
 // Add a method to the user schema to check password validity
 userSchema.methods.isValidPassword = async function(password) 
 {
+
+    // Compare the password with the hashed password in order to validate the user
     return await bcrypt.compare(password, this.password);
 };
 
