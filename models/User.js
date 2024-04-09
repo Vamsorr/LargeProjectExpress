@@ -2,6 +2,7 @@
 
 // import mongoose and bcrypt, to create a user schema and hash passwords
 const mongoose = require('mongoose');
+const { Schema } = mongoose;
 const bcrypt = require('bcryptjs');
 
 // Create a user schema
@@ -385,28 +386,28 @@ const userSchema = new mongoose.Schema({
 
     strSource:
     {
-      type: Null,
+      type: Schema.Types.Mixed,
       required: false,
       unique: false
     },
 
     strImageSource:
     {
-      type: Null,
+      type: Schema.Types.Mixed,
       required: false,
       unique: false
     },
 
     strCreativeCommonsConfirmed:
     {
-      type: Null,
+      type: Schema.Types.Mixed,
       required: false,
       unique: false
     },
 
     dateModified:
     {
-      type: Null,
+      type: Schema.Types.Mixed,
       required: false,
       unique: false
     },
@@ -437,7 +438,7 @@ userSchema.methods.isValidPassword = async function(password)
 
 // Create a user model and a recipe model
 const User = mongoose.model('User', userSchema);
-const Recipe = mongoose.model('Recipe', recipeScheme);
+const Recipe = mongoose.model('Recipe', recipeSchema);
 
 // Export the user model and the recipe model so that they can be used in other modules
 module.exports = Recipe;
