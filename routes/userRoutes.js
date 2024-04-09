@@ -19,8 +19,8 @@ router.post('/signup', async (req, res) =>
 {
     try {
 
-        // Get the username, password, and email from the post request body
-        const { username, password, email } = req.body;
+        // Get the username and email from the post request body
+        const { username, email } = req.body;
 
         // Check if the user already exists
         let existingUser = await User.findOne({ $or: [{ username }, { email }] });
@@ -37,21 +37,21 @@ router.post('/signup', async (req, res) =>
         // Store the confirmation number and email in a map
         confirmationNumbers.set(email, confirmationNumber);
 
-        // Create a transporter object using the default SMTP transport, must use gmail
+        // Create a transporter object using the default SMTP transport using gmail
         let transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: 
             {
-                user: 'your-email@gmail.com', // replace with your email
-                pass: 'your-password' // replace with your password
+                user: 'recipeteam007@gmail.com',
+                pass: 'RagNarok867????' 
             }
         });
 
         // Send email with defined transport object
         let info = await transporter.sendMail({
-            from: '"RecipeTeam" RecipeGang@gmail.com', // sender address
-            to: email, // list of receivers
-            subject: "Recipe App Confirmation Number", // Subject line
+            from: '"recipeteam007@gmail.com', // sender address
+            to: email, // sending to the email entered by the user
+            subject: "Recipe App Confirmation Number",
             text: `Your Recipe App confirmation number is ${confirmationNumber}. Please click the following link to confirm your account: /signup/confirm. Once the link is clicked, please enter the 5 digit confirmation number to complete the signup process.`, // plain text body
         });
 
