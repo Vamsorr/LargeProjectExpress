@@ -9,7 +9,7 @@ const Recipe = require('../models/User');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
-// create a map to stroe the confirmation numbers
+// create a map to store the confirmation numbers
 let confirmationNumbers = new Map();
 
 // Create a new router
@@ -20,10 +20,10 @@ router.post('/signup', async (req, res) =>
     try {
 
         // Get the username and email from the post request body
-        const { username, email } = req.body;
+        const { username, password, email } = req.body;
 
         // Check if the user already exists
-        let existingUser = await User.findOne({ $or: [{ username }, { email }] });
+        let existingUser = await User.findOne({ username });
 
         // If the user already exists, return an error
         if (existingUser) 
@@ -31,32 +31,62 @@ router.post('/signup', async (req, res) =>
             return res.status(409).send({ message: "User already exists" });
         }
 
-        // Generate a random confirmation number
+        // Generate a random confirmation number to ensure the email is valid
         let confirmationNumber = Math.floor(10000 + Math.random() * 90000);
+
+        // Create a new user object
+        const user = new User({ username, password, email, confirmationNumber});
+
+        // Save the user to the database
+        await user.save();
 
         // Store the confirmation number and email in a map
         confirmationNumbers.set(email, confirmationNumber);
 
+        // Return the user object to the client
+        res.json(user);
+
         // Create a transporter object using the default SMTP transport using gmail
         let transporter = nodemailer.createTransport({
             service: 'gmail',
+            host: "smtp.gmail.com",
+            port: 587,
+            secure: false, // true for 465, false for other ports
             auth: 
             {
-                user: 'recipeteam007@gmail.com',
-                pass: 'RagNarok867????' 
+                user: process.env.GMAIL_USER,
+                pass: process.env.GMAIL_PASS, // app password from gmail account
             }
         });
 
         // Send email with defined transport object
-        let info = await transporter.sendMail({
-            from: '"recipeteam007@gmail.com', // sender address
+        let mailOptions = {
+            from:
+            {
+                name: "Recipe App",
+                address: process.env.GMAIL_USER
+            },
             to: email, // sending to the email entered by the user
             subject: "Recipe App Confirmation Number",
-            text: `Your Recipe App confirmation number is ${confirmationNumber}. Please click the following link to confirm your account: /signup/confirm. Once the link is clicked, please enter the 5 digit confirmation number to complete the signup process.`, // plain text body
-        });
+            text: `Your Recipe App confirmation number is ${user.confirmationNumber}. Please click the following link to login using your confirmation number: \n\nhttp://${req.headers.host}/login.`, // plain text body
+        }
 
-        // Send a response to the client
-        res.status(200).send({ message: 'Confirmation number sent, please check your email' });
+        // Send the email
+        const sendMail = async (transporter, mailOptions) =>
+        {
+            try
+            {
+                await transporter.sendMail(mailOptions)
+                console.log("Email sent");
+
+            } catch(error)
+            {
+                console.error(error);
+            }
+        }
+
+        // Call the sendMail function
+        sendMail(transporter, mailOptions);
     
         // If an error occurs, return it to the client
     } catch (error) 
@@ -65,53 +95,53 @@ router.post('/signup', async (req, res) =>
     }
 });
 
-router.post('/signup/confirm', async (req, res) => {
-    try {
-        const { confirmationNumber } = req.body;
 
-        // Check if the confirmation number exists
-        if (!confirmationNumbers.has(confirmationNumber)) {
-            return res.status(400).send({ message: "Invalid confirmation number" });
-        }
-
-        // Get the user details
-        const { username, password, email } = confirmationNumbers.get(confirmationNumber);
-
-        // Create a new user
-        const user = new User({ username, password, email });
-
-        // Save the user to the database
-        await user.save();
-
-        // Remove the confirmation number
-        confirmationNumbers.delete(confirmationNumber);
-
-        // send the user object to the client
-        res.json(user);
-
-        // If an error occurs, return it to the client
-    } catch (error) 
-    {
-        res.status(500).send({ message: "Error confirming user", error: error.message });
-    }
-});
 
 router.post('/login', async (req, res) => 
 {
     try 
-    {
-        // Get the username and password from the post request body
-        const { username, password } = req.body;
+    {   
+        // Get the username, password and confirmation number from the post request body
+        const { username, password, confirmationNumber } = req.body;
 
         // saving the user object from the database to user variable
         const user = await User.findOne({ username });
 
-        // If the user is not found, or the password is incorrect, return an error
-        if (!user || !(await user.isValidPassword(password))) 
+        // num is boolean to check if there is a confirmation number in the request body
+        const num = req.body.confirmationNumber ? true : false;
+
+        // If the user is not found, wrong username error
+        if (!user) 
         {
-            return res.status(401).send({ message: "Invalid username or password" });
+            return res.status(401).send({ message: "Invalid username" });
         }
-        
+
+        // If the password is incorrect, return an error
+        if (!(await user.isValidPassword(password)))
+        {
+            return res.status(401).send({ message: "Invalid password"});
+        }
+
+        // if email has not been authenticated then you must enter username, password and confirmation number to login
+        if (user.emailAuthenticated === false)
+            {
+
+                if (!num)
+                {
+                    return res.status(401).send({ message: "You must enter a confirmation number to login, if you have not received a confirmation number, please sign up again"});
+                }
+
+                // if the confirmation number entered does not match the confirmation number in the database, return an error
+                if (parseInt(confirmationNumber, 10 ) !== user.confirmationNumber)
+                {
+                    return res.status(401).send({ message: "Invalid confirmation number"});
+                }
+
+                // if the confirmation number is correct, set the emailAuthenticated to true
+                user.emailAuthenticated = true;
+                user.save();
+            }
+
         // If the user is found and the password is correct, create a token
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
