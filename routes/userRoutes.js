@@ -5,13 +5,12 @@ const express = require('express');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const Recipe = require('../models/User');
+const path = require('path');
 
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
-// create a map to store the confirmation numbers
-let confirmationNumbers = new Map();
 
 // Create a new router
 const router = express.Router();
@@ -32,23 +31,25 @@ router.post('/signup', async (req, res) =>
             return res.status(409).send({ message: "User already exists" });
         }
 
-        // Generate a random confirmation number to ensure the email is valid
-        let confirmationNumber = Math.floor(10000 + Math.random() * 90000);
-
         // Create a new user object
-        const user = new User({ username, password, email, confirmationNumber});
+        const user = new User({ username, password, email});
 
         // Save the user to the database
         await user.save();
 
-        // Store the confirmation number and email in a map
-        confirmationNumbers.set(email, confirmationNumber);
-
         // Return the user object to the client
         res.json(user);
 
+        // Creating a token for the user
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        // Creating a url to send to the user's email with an embedded json web token
+        // to confirm registration and direct user to login
+        const url = `http://localhost:3000/confirmation/${token}`;
+
         // Create a transporter object using the default SMTP transport using gmail
-        let transporter = nodemailer.createTransport({
+        let transporter = nodemailer.createTransport
+        ({
             service: 'gmail',
             host: "smtp.gmail.com",
             port: 587,
@@ -61,15 +62,16 @@ router.post('/signup', async (req, res) =>
         });
 
         // Send email with defined transport object
-        let mailOptions = {
+        let mailOptions = 
+        {
             from:
             {
                 name: "Culinary Canvas",
                 address: process.env.GMAIL_USER
             },
             to: email, // sending to the email entered by the user
-            subject: "Culinary Canvas Confirmation Number",
-            text: `Your Recipe App confirmation number is ${user.confirmationNumber}. Please click the following link to login using your confirmation number: \n\nhttp://${req.headers.host}/login.`, // plain text body
+            subject: "Culinary Canvas Registration Confirmation",
+            text: `Please click the following link to login and confirm your registration and login: \n\n${url}`
         }
 
         // Send the email
@@ -96,20 +98,58 @@ router.post('/signup', async (req, res) =>
     }
 });
 
+// get login endpoint
+router.get('/login', async (req, res) => {
+
+    // serve the login page
+    res.sendFile(path.join(__dirname, '/login.html'));
+});
 
 
+router.get('/confirmation/:token', async (req, res) => {
+    try {
+        // Get the token from the request parameters
+        const token = req.params.token;
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Convert the userId back to an ObjectId
+        const ObjectId = mongoose.Types.ObjectId;
+        const userId = new ObjectId(payload.userId);
+
+        // Find the user with the userId
+        const user = await User.findOne({ _id: userId });
+
+        // If the user is not found, return an error
+        if (!user) {
+            return res.status(400).send({ message: 'We were unable to find a user for this token.' });
+        }
+
+        // If the user is already verified, return an error
+        if (user.confirmed) {
+            return res.status(400).send({ message: 'This user has already been verified.' });
+        }
+
+        // If we found a user, set their `confirmed` field to true
+        await User.updateOne({ _id: userId }, { $set: { confirmed: true } });
+
+        res.redirect('http://localhost:3000/login');
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: 'Invalid token' });
+    }
+});
+
+// Login endpoint
 router.post('/login', async (req, res) => 
 {
     try 
     {   
         // Get the username, password and confirmation number from the post request body
-        const { username, password, confirmationNumber } = req.body;
+        const { username, password} = req.body;
 
         // saving the user object from the database to user variable
         const user = await User.findOne({ username });
-
-        // num is boolean to check if there is a confirmation number in the request body
-        const num = req.body.confirmationNumber ? true : false;
 
         // If the user is not found, wrong username error
         if (!user) 
@@ -123,31 +163,14 @@ router.post('/login', async (req, res) =>
             return res.status(401).send({ message: "Invalid password"});
         }
 
-        // if email has not been authenticated then you must enter username, password and confirmation number to login
-        if (user.emailAuthenticated === false)
-            {
-
-                if (!num)
-                {
-                    return res.status(401).send({ message: "You must enter a confirmation number to login, if you have not received a confirmation number, please sign up again"});
-                }
-
-                // if the confirmation number entered does not match the confirmation number in the database, return an error
-                if (parseInt(confirmationNumber, 10 ) !== user.confirmationNumber)
-                {
-                    return res.status(401).send({ message: "Invalid confirmation number"});
-                }
-
-                // if the confirmation number is correct, set the emailAuthenticated to true
-                user.emailAuthenticated = true;
-                user.save();
-            }
-
-        // If the user is found and the password is correct, create a token
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        // If user has not confirmed email he may not login
+        if (!user.confirmed)
+        {
+            return res.status(401).send({ message: "Please confirm your email to login"});
+        }
 
         // Respond with the user and token
-        res.status(200).send({ user,token });
+        res.status(200).send({ user});
 
     // If an error occurs, return it to the client
     } catch (error) 

@@ -9,9 +9,14 @@ require('dotenv').config(); // To use environment variables from .env file
 const { MongoClient, ServerApiVersion } = require("mongodb"); // For testing MongoDB connection
 const expressSwaggerGenerator = require('express-swagger-generator'); // For Swagger documentation
 
+
 // Create an express app
 const app = express();
 app.use(express.json()); // Middleware to parse JSON bodies
+
+// Import the models
+const ObjectId = mongoose.Types.ObjectId;
+
 
 // Connect to MongoDB using the connection string from environment variables
 mongoose.connect(process.env.MONGO_URI, {

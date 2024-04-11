@@ -27,13 +27,7 @@ const userSchema = new mongoose.Schema
       required: true,
     },
 
-    confirmationNumber:
-    {
-      type: Number,
-      required: false,
-    },
-
-    emailAuthenticated:
+    confirmed:
     {
       type: Boolean,
       required: false,
