@@ -34,6 +34,13 @@ const userSchema = new mongoose.Schema
       default: false,
     },
 
+    resetConfirm:
+    {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+
     resetPasswordToken: 
     { 
       type: String,

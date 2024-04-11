@@ -10,13 +10,11 @@ const { MongoClient, ServerApiVersion } = require("mongodb"); // For testing Mon
 const expressSwaggerGenerator = require('express-swagger-generator'); // For Swagger documentation
 
 
+
 // Create an express app
 const app = express();
 app.use(express.json()); // Middleware to parse JSON bodies
-
-// Import the models
-const ObjectId = mongoose.Types.ObjectId;
-
+app.use(express.static('public'));
 
 // Connect to MongoDB using the connection string from environment variables
 mongoose.connect(process.env.MONGO_URI, {
@@ -25,6 +23,7 @@ mongoose.connect(process.env.MONGO_URI, {
 
 // Use userRoutes for any requests that start with '/api/users'
 app.use('/api/users', userRoutes);
+
 
 // Initialize Swagger
 const expressSwagger = expressSwaggerGenerator(app);

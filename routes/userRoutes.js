@@ -10,10 +10,16 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-
+const mongoose = require('mongoose');
 
 // Create a new router
 const router = express.Router();
+
+router.get('/signup', async (req, res) => {
+
+    // serve the login page
+    res.sendFile(path.join(__dirname, '/signup.html'));
+});
 
 router.post('/signup', async (req, res) => 
 {
@@ -45,7 +51,7 @@ router.post('/signup', async (req, res) =>
 
         // Creating a url to send to the user's email with an embedded json web token
         // to confirm registration and direct user to login
-        const url = `http://localhost:3000/confirmation/${token}`;
+        const url = `http://localhost:3000/api/users/confirmation/${token}`;
 
         // Create a transporter object using the default SMTP transport using gmail
         let transporter = nodemailer.createTransport
@@ -98,14 +104,6 @@ router.post('/signup', async (req, res) =>
     }
 });
 
-// get login endpoint
-router.get('/login', async (req, res) => {
-
-    // serve the login page
-    res.sendFile(path.join(__dirname, '/login.html'));
-});
-
-
 router.get('/confirmation/:token', async (req, res) => {
     try {
         // Get the token from the request parameters
@@ -126,7 +124,7 @@ router.get('/confirmation/:token', async (req, res) => {
 
         // If the user is already verified, return an error
         if (user.confirmed) {
-            return res.status(400).send({ message: 'This user has already been verified.' });
+            return res.status(400).send({ message: 'This user has been verified.' });
         }
 
         // If we found a user, set their `confirmed` field to true
@@ -138,6 +136,13 @@ router.get('/confirmation/:token', async (req, res) => {
         console.log(error);
         res.status(500).send({ message: 'Invalid token' });
     }
+});
+
+
+router.get('/login', async (req, res) => {
+
+    // serve the login page
+    res.sendFile(path.join(__dirname, '/login.html'));
 });
 
 // Login endpoint
@@ -169,8 +174,11 @@ router.post('/login', async (req, res) =>
             return res.status(401).send({ message: "Please confirm your email to login"});
         }
 
+        // If the credentials are valid and the email is confirmed, generate a token for the user
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
         // Respond with the user and token
-        res.status(200).send({ user});
+        res.status(200).send({ user, token, message: "Yay you're logged in!"});
 
     // If an error occurs, return it to the client
     } catch (error) 
@@ -178,6 +186,12 @@ router.post('/login', async (req, res) =>
         // Log the error to the console
         res.status(500).send({ message: "Error logging in", error: error.message });
     }
+});
+
+router.get('/forgot-password', async (req, res) => {
+
+    // serve the login page
+    res.sendFile(path.join(__dirname, '/forgot-password.html'));
 });
 
 // implement the forgot password endpoint, user enters email and receives a reset link by email
@@ -245,7 +259,7 @@ router.post('/forgot-password', async (req, res) =>
         subject: 'Culinary Canvas Password Reset',
         text: `You are receiving this because you have requested the reset of the password
          for your Culinary Canvas account.\n\nPlease click on the following link, or paste this into your browser to complete
-          the process:\n\nhttp://${req.headers.host}/reset-password\n\n`
+          the process:\n\nhttp://localhost:3000/api/user/reset-password/${user.resetPasswordToken}\n\n`
       };
     
       // Send the email to the user with the reset link
@@ -256,8 +270,38 @@ router.post('/forgot-password', async (req, res) =>
 
         res.status(200).send({ message: 'Email sent' });
     });
+});
 
+/*  // Confirmation password endpoint
+router.get('/confirmation-pass/:token', async (req, res) => {
+    try {
+        // Find the user with the resetPasswordToken that matches the token in the URL
+        const user = await User.findOne({ resetPasswordToken: req.params.token });
 
+        // If no user is found, return an error
+        if (!user) {
+            return res.status(400).send({ message: "Invalid or expired token" });
+        }
+
+        // If a user is found, set resetPasswordToken to true
+        user.resetPasswordToken = true;
+
+        // Save the updated user to the database
+        await user.save();
+
+        // Redirect the user to the reset-password endpoint
+        res.redirect('/api/user/reset-password');
+    } catch (error) {
+        // ... code to handle error
+        res.status(500).send({ message: 'Server error' });
+    }
+});
+*/
+
+router.get('/reset-password', async (req, res) => {
+
+    // serve the login page
+    res.sendFile(path.join(__dirname, '/reset-password.html'));
 });
 
 // Reset password endpoint
@@ -290,6 +334,13 @@ router.post('/reset-password', async (req, res) =>
   {
     return res.status(400).send({ message: 'Inavlid Username' });
   }
+
+  /*
+    if (user.resetConfirm !== true)
+    {
+        return res.status(400).send({ message: 'Please confirm your email to reset password'});
+    }
+  */
 
   // If the token has expired, return an error
   if (Date.now() > user.resetPasswordTokenExpires)
