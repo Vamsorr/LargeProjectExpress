@@ -6,6 +6,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const Recipe = require('../models/User');
 
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
@@ -159,6 +160,10 @@ router.post('/login', async (req, res) =>
 // implement the forgot password endpoint, user enters email and receives a reset link by email
 router.post('/forgot-password', async (req, res) =>
 {
+    // Log the values of the environment variables
+    console.log(process.env.GMAIL_USER);
+    console.log(process.env.GMAIL_PASS);
+
     // Get the email from the request body
     const {email} = req.body;
 
@@ -170,6 +175,9 @@ router.post('/forgot-password', async (req, res) =>
     {
         return res.status(404).send({message: "User not found"});
     }
+
+    // Log the user's email
+    console.log("User email:", user.email);
 
     // Create a token for the user
     const token = crypto.randomBytes(20).toString('hex');
@@ -187,7 +195,9 @@ router.post('/forgot-password', async (req, res) =>
     const transporter = nodemailer.createTransport
     ({
         service: 'gmail',
-        auth: {
+        host: "smtp.gmail.com",
+        auth:
+        {
           user: process.env.GMAIL_USER,
           pass: process.env.GMAIL_PASS
         }
@@ -196,20 +206,26 @@ router.post('/forgot-password', async (req, res) =>
       // Create the email options object which sends user to the reset password page
       const mailOptions = 
       {
-        to: email,
-        from: process.env.GMAIL_USER,
-        subject: 'Password Reset',
+        to: user.email,
+        from:
+        {
+            name: 'Culinary Canvas',
+            address: process.env.GMAIL_USER,
+        },
+        subject: 'Culinary Canvas Password Reset',
         text: `You are receiving this because you have requested the reset of the password
-         for your recipeApp account.\n\nPlease click on the following link, or paste this into your browser to complete
+         for your Culinary Canvas account.\n\nPlease click on the following link, or paste this into your browser to complete
           the process:\n\nhttp://${req.headers.host}/reset-password\n\n`
       };
     
       // Send the email to the user with the reset link
       transporter.sendMail(mailOptions, (err) =>
     {
-        if (err) return res.status(500).send({ message: 'Error sending email' });
+        if (err)
+            return res.status(500).send({ message: 'Error sending email' });
+
         res.status(200).send({ message: 'Email sent' });
-      });
+    });
 
 
 });
@@ -217,14 +233,22 @@ router.post('/forgot-password', async (req, res) =>
 // Reset password endpoint
 router.post('/reset-password', async (req, res) => 
 {
-  const { token, newPassword } = req.body;
+  // Get the token and new password from the request body
+  const { username, newPassword } = req.body;
 
   // Find the user with the provided token
-  const user = await User.findOne({ resetPasswordToken: token });
+  const user = await User.findOne({ username });
 
-  // If no user is found, or the token has expired, return an error
-  if (!user || Date.now() > user.resetPasswordTokenExpires) {
-    return res.status(400).send({ message: 'Invalid or expired token' });
+  // If no user is found, return an error
+  if (!user) 
+  {
+    return res.status(400).send({ message: 'Inavlid Username' });
+  }
+
+  // If the token has expired, return an error
+  if (Date.now() > user.resetPasswordTokenExpires)
+  {
+    return res.status(400).send({ message: "Token has expired, please request a new one"});
   }
 
   // Hash the new password
