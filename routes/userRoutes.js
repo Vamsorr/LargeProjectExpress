@@ -64,11 +64,11 @@ router.post('/signup', async (req, res) =>
         let mailOptions = {
             from:
             {
-                name: "Recipe App",
+                name: "Culinary Canvas",
                 address: process.env.GMAIL_USER
             },
             to: email, // sending to the email entered by the user
-            subject: "Recipe App Confirmation Number",
+            subject: "Culinary Canvas Confirmation Number",
             text: `Your Recipe App confirmation number is ${user.confirmationNumber}. Please click the following link to login using your confirmation number: \n\nhttp://${req.headers.host}/login.`, // plain text body
         }
 
@@ -170,6 +170,13 @@ router.post('/forgot-password', async (req, res) =>
     // check if the user exists in the database
     const user = await User.findOne({email});
 
+    // check if the email exists in the request body
+    const emailExists = req.body.email ? true : false;
+    if (!emailExists)
+    {
+        return res.status(400).send({ message: "Please enter an email"});
+    }
+
     // If the user does not exist, return an error
     if (!user)
     {
@@ -239,6 +246,22 @@ router.post('/reset-password', async (req, res) =>
   // Find the user with the provided token
   const user = await User.findOne({ username });
 
+  // username and password variables used to check if username and password exist in request body
+  const pass = req.body.newPassword;
+  const usename = req.body.username;
+
+  // if username or password are not provided throw error
+  if (!pass)
+  {
+    return res.status(400).send({ message: 'Please enter a password'});
+  }
+
+  if (!usename)
+  {
+    return res.status(400).send({ message: 'Please enter a username'});
+  }
+
+
   // If no user is found, return an error
   if (!user) 
   {
@@ -266,6 +289,32 @@ router.post('/reset-password', async (req, res) =>
 });
 
 
+// Add recipe
+router.post('/add-recipe', async (req, res) =>
+{
+
+    // create a new recipe object from the request body
+    const recipe = new Recipe(req.body);
+
+    // save the recipe to the database
+    await recipe.save();
+
+    // send the recipe to the client
+    res.send(recipe);
+})
+
+// edit recipe by strMeal
+router.patch('/edit-recipe', async (req, res) =>
+{
+    // find the recipe by strMeal, aka the meal name
+    const recipe = await Recipe.findOne({strMeal: req.body.strMeal});
+
+    // update the recipe with the new values
+    recipe.set(req.body);
+
+    // save the updated recipe to the database
+    await recipe.save();
+})
 
 // Export the router
 module.exports = router;
