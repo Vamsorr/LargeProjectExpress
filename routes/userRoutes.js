@@ -3,6 +3,7 @@
 // Import express, User model, Recipe and jsonwebtoken
 const express = require('express');
 const User = require('../models/User');
+const Favorites = require('../models/User');
 const jwt = require('jsonwebtoken');
 const Recipe = require('../models/User');
 const path = require('path');
@@ -124,13 +125,13 @@ router.get('/confirmation/:token', async (req, res) => {
 
         // If the user is already verified, return an error
         if (user.confirmed) {
-            return res.status(400).send({ message: 'This user has been verified.' });
+            return res.status(200).send({ message: 'This user has been verified.' });
         }
 
         // If we found a user, set their `confirmed` field to true
         await User.updateOne({ _id: userId }, { $set: { confirmed: true } });
 
-        res.redirect('http://localhost:3000/login');
+        // res.redirect('http://localhost:3000/api/user/login');
 
     } catch (error) {
         console.log(error);
@@ -139,11 +140,6 @@ router.get('/confirmation/:token', async (req, res) => {
 });
 
 
-router.get('/login', async (req, res) => {
-
-    // serve the login page
-    res.sendFile(path.join(__dirname, '/login.html'));
-});
 
 // Login endpoint
 router.post('/login', async (req, res) => 
@@ -188,11 +184,6 @@ router.post('/login', async (req, res) =>
     }
 });
 
-router.get('/forgot-password', async (req, res) => {
-
-    // serve the login page
-    res.sendFile(path.join(__dirname, '/forgot-password.html'));
-});
 
 // implement the forgot password endpoint, user enters email and receives a reset link by email
 router.post('/forgot-password', async (req, res) =>
@@ -298,12 +289,6 @@ router.get('/confirmation-pass/:token', async (req, res) => {
 });
 */
 
-router.get('/reset-password', async (req, res) => {
-
-    // serve the login page
-    res.sendFile(path.join(__dirname, '/reset-password.html'));
-});
-
 // Reset password endpoint
 router.post('/reset-password', async (req, res) => 
 {
@@ -389,6 +374,38 @@ router.patch('/edit-recipe', async (req, res) =>
     // save the updated recipe to the database
     await recipe.save();
 })
+
+
+router.get('/favorite-recipe/:id', async (req, res) =>
+{
+
+    // get the user's favorite recipes
+    const favorites_json = await Favorites.find({userId: req.params.id});
+
+    // send the favorites to the client
+    res.send(favorites_json);
+}
+)
+
+router.post('/favorite-recipe/', async (req, res) => {
+    const { userId, recipeId } = req.body;
+
+    if (!userId || !recipeId) {
+        return res.status(400).send({ error: 'userId and recipeId are required' });
+    }
+
+    try {
+        const favorite = new Favorites({ userId, recipeId });
+        await favorite.save();
+        res.send(favorite);
+    } catch (error) {
+        console.error(error);   
+        res.status(500).send({ error: 'An error occurred while saving the favorite' });
+    }
+});
+
+
+
 
 // Export the router
 module.exports = router;

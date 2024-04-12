@@ -54,6 +54,23 @@ const userSchema = new mongoose.Schema
     },
   })
 
+  const favoriteSchema = new Schema({
+    _id: {
+      type: Schema.Types.ObjectId,
+      required: false,
+      auto: true,
+    },
+    recipeId: {
+      type: String,
+      required: true
+    },
+    userId: {
+      type: String,
+      required: true
+    }
+  });
+
+
   // Create a recipe schema
   const recipeSchema = new Schema({
     _id: {
@@ -143,8 +160,9 @@ userSchema.methods.isValidPassword = async function(password)
 // Create a user model and a recipe model
 const User = mongoose.model('User', userSchema);
 const Recipe = mongoose.model('Recipe', recipeSchema);
+const Favorites = mongoose.model('Favorite', favoriteSchema);
 
 // Export the user model and the recipe model so that they can be used in other modules
 module.exports = Recipe;
 module.exports = User;
-
+module.exports = Favorites;
