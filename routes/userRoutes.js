@@ -3,9 +3,9 @@
 // Import express, User model, Recipe and jsonwebtoken
 const express = require('express');
 const User = require('../models/User');
-const Favorites = require('../models/User');
+const Favorites = require('../models/Favorites');
+const Recipe = require('../models/Recipe');
 const jwt = require('jsonwebtoken');
-const Recipe = require('../models/User');
 const path = require('path');
 
 const bcrypt = require('bcryptjs');
@@ -41,6 +41,7 @@ router.post('/signup', async (req, res) =>
         // Create a new user object
         const user = new User({ username, password, email});
 
+        console.log(user);
         // Save the user to the database
         await user.save();
 
@@ -131,7 +132,7 @@ router.get('/confirmation/:token', async (req, res) => {
         // If we found a user, set their `confirmed` field to true
         await User.updateOne({ _id: userId }, { $set: { confirmed: true } });
 
-        // res.redirect('http://localhost:3000/api/user/login');
+        res.status(200).send({ message: 'The account has been verified, successfully' });
 
     } catch (error) {
         console.log(error);
