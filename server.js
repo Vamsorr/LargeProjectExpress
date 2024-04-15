@@ -1,8 +1,9 @@
 // server.js
-// USE: "npm run devStart" to start the server
+// USE: "npm start" to start the server
 
 // Import express, mongoose, and userRoutes
 const express = require('express');
+const cors = require('cors');
 const mongoose = require('mongoose');
 const userRoutes = require('./routes/userRoutes'); // Import userRoutes
 require('dotenv').config(); // To use environment variables from .env file
@@ -13,8 +14,20 @@ const expressSwaggerGenerator = require('express-swagger-generator'); // For Swa
 
 // Create an express app
 const app = express();
+app.use(cors());
+// Middleware to parse URL-encoded bodies
 app.use(express.json()); // Middleware to parse JSON bodies
 app.use(express.static('public'));
+
+//handle cors error
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+});
+
+
 
 // Connect to MongoDB using the connection string from environment variables
 mongoose.connect(process.env.MONGO_URI, {
@@ -22,7 +35,7 @@ mongoose.connect(process.env.MONGO_URI, {
   .catch(err => console.error('Could not connect to MongoDB:', err));
 
 // Use userRoutes for any requests that start with '/api/users'
-app.use('/api/users', userRoutes);
+app.use('/', userRoutes);
 
 
 // Initialize Swagger
@@ -90,7 +103,7 @@ async function testMongoDBConnection()
 testMongoDBConnection();
 
 // Start the server on port 3000
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => 
 {
     console.log(`Server running on http://localhost:${PORT}`);

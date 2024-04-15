@@ -34,6 +34,12 @@ const userSchema = new mongoose.Schema
       default: false,
     },
 
+    confirmationNumber:
+    {
+      type: String,
+      required: false,
+    },
+
     resetConfirm:
     {
       type: Boolean,
@@ -41,16 +47,10 @@ const userSchema = new mongoose.Schema
       default: false,
     },
 
-    resetPasswordToken: 
-    { 
+    emailConfirmNumber:
+    {
       type: String,
-      required: false 
-    },
-
-    resetPasswordTokenExpires:
-    { 
-      type: Date,
-      required: false
+      required: false,
     },
   })
 

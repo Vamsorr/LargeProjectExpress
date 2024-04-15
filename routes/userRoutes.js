@@ -16,12 +16,6 @@ const mongoose = require('mongoose');
 // Create a new router
 const router = express.Router();
 
-router.get('/signup', async (req, res) => {
-
-    // serve the login page
-    res.sendFile(path.join(__dirname, '/signup.html'));
-});
-
 router.post('/signup', async (req, res) => 
 {
     try {
@@ -38,10 +32,17 @@ router.post('/signup', async (req, res) =>
             return res.status(409).send({ message: "User already exists" });
         }
 
-        // Create a new user object
-        const user = new User({ username, password, email});
+        // Password complexity check
+        if (password.length < 7 || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+            return res.status(400).send({ message: "Password does not meet complexity requirements" });
+}
 
-        console.log(user);
+        // generate 2 digit confirmation number
+        let confirmationNumber = Math.floor(10 + Math.random() * 90);
+
+        // Create a new user object
+        const user = new User({ username, password, email, confirmationNumber});
+
         // Save the user to the database
         await user.save();
 
@@ -49,11 +50,11 @@ router.post('/signup', async (req, res) =>
         res.json(user);
 
         // Creating a token for the user
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        //const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         // Creating a url to send to the user's email with an embedded json web token
         // to confirm registration and direct user to login
-        const url = `http://localhost:3000/api/users/confirmation/${token}`;
+        //const url = process.env.URL;
 
         // Create a transporter object using the default SMTP transport using gmail
         let transporter = nodemailer.createTransport
@@ -78,8 +79,8 @@ router.post('/signup', async (req, res) =>
                 address: process.env.GMAIL_USER
             },
             to: email, // sending to the email entered by the user
-            subject: "Culinary Canvas Registration Confirmation",
-            text: `Please click the following link to login and confirm your registration and login: \n\n${url}`
+            subject: "Culinary Canvas confirmation number",
+            text: `Confirmation number: \n\n${user.confirmationNumber}\n\n`
         }
 
         // Send the email
@@ -106,37 +107,26 @@ router.post('/signup', async (req, res) =>
     }
 });
 
-router.get('/confirmation/:token', async (req, res) => {
-    try {
-        // Get the token from the request parameters
-        const token = req.params.token;
-        const payload = jwt.verify(token, process.env.JWT_SECRET);
+// confirmation-number endpoint to confirm email
+router.post('/confirmation-number', async (req, res) => 
+{
+    const { username, numberEntered } = req.body;
 
-        // Convert the userId back to an ObjectId
-        const ObjectId = mongoose.Types.ObjectId;
-        const userId = new ObjectId(payload.userId);
+    // find the user by username
+    const user = await User.findOne({ username });
 
-        // Find the user with the userId
-        const user = await User.findOne({ _id: userId });
+    // if user doesn't exist, send an error message
+    if (!user) {
+        return res.status(404).send({ message: "User not found" });
+    }
 
-        // If the user is not found, return an error
-        if (!user) {
-            return res.status(400).send({ message: 'We were unable to find a user for this token.' });
-        }
-
-        // If the user is already verified, return an error
-        if (user.confirmed) {
-            return res.status(200).send({ message: 'This user has been verified.' });
-        }
-
-        // If we found a user, set their `confirmed` field to true
-        await User.updateOne({ _id: userId }, { $set: { confirmed: true } });
-
-        res.status(200).send({ message: 'The account has been verified, successfully' });
-
-    } catch (error) {
-        console.log(error);
-        res.status(500).send({ message: 'Invalid token' });
+    // check if the confirmation number is correct
+    if (numberEntered == user.confirmationNumber) {
+        user.confirmed = true;
+        await user.save();
+        res.send({ message: "Confirmation number is correct" });
+    } else {
+        res.send({ message: "Confirmation number is incorrect" });
     }
 });
 
@@ -249,9 +239,7 @@ router.post('/forgot-password', async (req, res) =>
             address: process.env.GMAIL_USER,
         },
         subject: 'Culinary Canvas Password Reset',
-        text: `You are receiving this because you have requested the reset of the password
-         for your Culinary Canvas account.\n\nPlease click on the following link, or paste this into your browser to complete
-          the process:\n\nhttp://localhost:3000/api/user/reset-password/${user.resetPasswordToken}\n\n`
+        text: `here is your reset password confirmation${user.confirmationNumber}\n\n`
       };
     
       // Send the email to the user with the reset link
@@ -264,31 +252,7 @@ router.post('/forgot-password', async (req, res) =>
     });
 });
 
-/*  // Confirmation password endpoint
-router.get('/confirmation-pass/:token', async (req, res) => {
-    try {
-        // Find the user with the resetPasswordToken that matches the token in the URL
-        const user = await User.findOne({ resetPasswordToken: req.params.token });
 
-        // If no user is found, return an error
-        if (!user) {
-            return res.status(400).send({ message: "Invalid or expired token" });
-        }
-
-        // If a user is found, set resetPasswordToken to true
-        user.resetPasswordToken = true;
-
-        // Save the updated user to the database
-        await user.save();
-
-        // Redirect the user to the reset-password endpoint
-        res.redirect('/api/user/reset-password');
-    } catch (error) {
-        // ... code to handle error
-        res.status(500).send({ message: 'Server error' });
-    }
-});
-*/
 
 // Reset password endpoint
 router.post('/reset-password', async (req, res) => 
@@ -319,6 +283,12 @@ router.post('/reset-password', async (req, res) =>
   if (!user) 
   {
     return res.status(400).send({ message: 'Inavlid Username' });
+  }
+
+  // Password complexity check
+  if (newPassword.length < 7 || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) 
+  {
+    return res.status(400).send({ message: "Password does not meet complexity requirements" });
   }
 
   /*
@@ -389,14 +359,14 @@ router.get('/favorite-recipe/:id', async (req, res) =>
 )
 
 router.post('/favorite-recipe/', async (req, res) => {
-    const { userId, recipeId } = req.body;
+    const { username, recipeId } = req.body;
 
-    if (!userId || !recipeId) {
+    if (!username || !recipeId) {
         return res.status(400).send({ error: 'userId and recipeId are required' });
     }
 
     try {
-        const favorite = new Favorites({ userId, recipeId });
+        const favorite = new Favorites({ username, recipeId });
         await favorite.save();
         res.send(favorite);
     } catch (error) {
@@ -404,6 +374,25 @@ router.post('/favorite-recipe/', async (req, res) => {
         res.status(500).send({ error: 'An error occurred while saving the favorite' });
     }
 });
+
+
+router.post('/favorites', async (req, res) => {
+    const { username } = req.body;
+
+    if (!username) {
+        return res.status(400).send({ error: 'username is required' });
+    }
+
+    try {
+        const favorites = await Favorites.find({ username });
+        res.send(favorites);
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).send({ error: 'An error occurred while fetching favorites' });
+    }
+}
+);
 
 
 
