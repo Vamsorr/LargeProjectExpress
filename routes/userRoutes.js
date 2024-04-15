@@ -403,39 +403,53 @@ router.get('/favorite-recipe/:username', async (req, res) =>
     res.send(favorites);
 });
 
-// Add a favorite recipe
-router.post('/favorite-recipe', async (req, res) => 
-{
-    // get the username and idMeal from the request body
-    const { username, idMeal } = req.body;
+router.post('/favorites', async (req, res) => {
+    const { username } = req.body;
 
-    // if the username or idMeal are not provided, return an error
-    if (!username || !idMeal) 
-    {
-        return res.status(400).send({ error: 'username and idMeal are required' });
+    if (!username) {
+        return res.status(400).send({ error: 'username is required' });
     }
 
-    // find the user and the recipe in the database
-    const user = await User.findOne({ username });
-    const recipe = await Recipe.findOne({ 'meals.idMeal': idMeal });
-
-    /* if the user or the recipe do not exist, return an error
-    if (!user || !recipe) 
-    {
-        return res.status(404).send({ error: 'User or recipe not found' });
-    }
-    */
-
-    // create a new favorite object with the user's id and recipe's idMeal and save it to the database
     try {
-        const favorite = new Favorites({ userId: user._id, recipeId: idMeal });
-        await favorite.save();
-        res.send(favorite);
+        const favorites = await Favorites.find({ username });
+        res.send(favorites);
     } catch (error) {
         console.error(error);
-        res.status(500).send({ error: 'An error occurred while saving the favorite' });
+
+        res.status(500).send({ error: 'An error occurred while fetching favorites' });
     }
-});
+}
+);
+
+//get user by token
+router.get('/user', async (req, res) => {
+    const token = req.headers.authorization.split(' ')[1];
+    const decoded = jwt?.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+    res.send(user);
+}
+);
+
+//is user folliwing meal
+router.post('/is-favorite', async (req, res) => {
+    const { username, recipeId } = req.body;
+    const favorite = await Favorites.findOne({ username, recipeId });
+    console.log(favorite, username, recipeId);
+    res.send({ isFavorite: favorite ? true : false});
+}
+);
+
+
+//unfavorite recipe for user
+router.delete('/unfavorite', async (req, res) => {
+    const { username, recipeId } = req.body;
+    console.log(username, recipeId);
+    await Favorites
+        .findOneAndDelete({ username, recipeId })
+        .exec();
+    res.send({ message: 'Recipe unfavorite' });
+}
+);
 
 // Export the router
 module.exports = router;
