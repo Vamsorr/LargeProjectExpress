@@ -17,7 +17,11 @@ const favoriteSchema = new Schema({
     userId: {
       type: String,
       required: false
-    }
+    },
+    username: {
+      type: String,
+      required: true
+    },
   });
 
 // Create a model for the favorite schema

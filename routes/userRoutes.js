@@ -391,7 +391,7 @@ router.get('/favorite-recipe/:username', async (req, res) =>
     }
 
     // get the user's favorite recipes
-    const favorites = await Favorites.find({ userId: user._id });
+    const favorites = await Favorites.find({ username: username });
 
     // if the user has no favorites, return an appropriate message
     if (favorites.length === 0) 
@@ -470,6 +470,13 @@ router.post('/favorite-recipe/', async (req, res) => {
     }
 });
 
+
+//get everyones favorites
+router.get('/favorites-all', async (req, res) => {
+    const favorites = await Favorites.find();
+    res.send(favorites);
+}
+);
 
 // Export the router
 module.exports = router;
