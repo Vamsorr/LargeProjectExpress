@@ -451,6 +451,26 @@ router.delete('/unfavorite', async (req, res) => {
 }
 );
 
+router.post('/favorite-recipe/', async (req, res) => {
+    const { username, recipeId } = req.body;
+    console.log(username, recipeId);
+
+    if (!username || !recipeId) {
+        return res.status(400).send({ error: 'userId and recipeId are required' });
+    }
+
+    try {
+        const favorite = new Favorites({ username, recipeId });
+        console.log(favorite)
+        await favorite.save();
+        res.send(favorite);
+    } catch (error) {
+        console.error(error);   
+        res.status(500).send({ error: 'An error occurred while saving the favorite' });
+    }
+});
+
+
 // Export the router
 module.exports = router;
 
