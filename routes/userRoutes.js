@@ -29,7 +29,15 @@ router.post('/signup', async (req, res) =>
         // If the user already exists, return an error
         if (existingUser) 
         {
-            return res.status(409).send({ message: "User already exists" });
+            return res.status(409).send({ message: "Username already in use" });
+        }
+
+        // Check if the email already exists
+        let existingEmail = await User.findOne({ email });
+
+        // If the email already exists, return an error
+        if (existingEmail) {
+            return res.status(409).send({ message: "Email already in use" });
         }
 
         // Password complexity check
@@ -110,6 +118,7 @@ router.post('/signup', async (req, res) =>
 // confirmation-number endpoint to confirm email
 router.post('/confirmation-number', async (req, res) => 
 {
+    // Get the username and confirmation number from the request body
     const { username, numberEntered } = req.body;
 
     // find the user by username
@@ -121,12 +130,14 @@ router.post('/confirmation-number', async (req, res) =>
     }
 
     // check if the confirmation number is correct
-    if (numberEntered == user.confirmationNumber) {
+    if (numberEntered == user.confirmationNumber) 
+    {
         user.confirmed = true;
         await user.save();
         res.send({ message: "Confirmation number is correct" });
-    } else {
-        res.send({ message: "Confirmation number is incorrect" });
+    } else 
+    {
+        res.send({ message: "Invalid confirmation number" });
     }
 });
 
@@ -179,40 +190,40 @@ router.post('/login', async (req, res) =>
 // implement the forgot password endpoint, user enters email and receives a reset link by email
 router.post('/forgot-password', async (req, res) =>
 {
-    // Log the values of the environment variables
-    console.log(process.env.GMAIL_USER);
-    console.log(process.env.GMAIL_PASS);
 
     // Get the email from the request body
-    const {email} = req.body;
+    const {username} = req.body;
 
     // check if the user exists in the database
-    const user = await User.findOne({email});
+    const user = await User.findOne({username});
 
     // check if the email exists in the request body
-    const emailExists = req.body.email ? true : false;
-    if (!emailExists)
+    const userExists = req.body.username ? true : false;
+    if (!userExists)
     {
-        return res.status(400).send({ message: "Please enter an email"});
+        return res.status(400).send({ message: "Please enter a username"});
     }
 
     // If the user does not exist, return an error
     if (!user)
     {
-        return res.status(404).send({message: "User not found"});
+        return res.status(404).send({message: "please enter a valid username"});
     }
 
     // Log the user's email
-    console.log("User email:", user.email);
+    console.log("Username:", user.username);
 
-    // Create a token for the user
-    const token = crypto.randomBytes(20).toString('hex');
+    // generate 2 digit confirmation number
+    let confirmationNumber = Math.floor(10 + Math.random() * 90);
 
-    // Create a transporter object to send the email
-    user.resetPasswordToken = token;
-
-    // Set the expiration time for the token to 1 hour
-    user.resetPasswordTokenExpires = Date.now() + 3600000;
+    // saving confirmation number to the user object
+    user.emailConfirmNumber = confirmationNumber;
+    
+    // Save the user to the database
+    await user.save();
+    
+    // Return the user object to the client
+    res.json(user);
 
     // Save the user to the database
     await user.save();
@@ -239,17 +250,42 @@ router.post('/forgot-password', async (req, res) =>
             address: process.env.GMAIL_USER,
         },
         subject: 'Culinary Canvas Password Reset',
-        text: `here is your reset password confirmation${user.confirmationNumber}\n\n`
+        text: `here is your reset password confirmation\n\n${user.emailConfirmNumber}\n\n`
       };
     
       // Send the email to the user with the reset link
-      transporter.sendMail(mailOptions, (err) =>
+      
+        transporter.sendMail(mailOptions, (err) =>
     {
-        if (err)
-            return res.status(500).send({ message: 'Error sending email' });
+            if (err)
+                return res.status(500).send({ message: 'Error sending email' });
 
-        res.status(200).send({ message: 'Email sent' });
+            res.status(200).send({ message: 'Email sent' });
     });
+});
+
+// confirmation-number endpoint to confirm email
+router.post('/Email-Confirmation-number', async (req, res) => 
+{
+    const { username, numberEntered } = req.body;
+
+    // find the user by username
+    const user = await User.findOne({ username });
+
+    // if user doesn't exist, send an error message
+    if (!user) {
+        return res.status(404).send({ message: "User not found" });
+    }
+
+    // check if the confirmation number is correct
+    if (numberEntered == user.emailConfirmNumber) {
+        user.resetConfirm = true;
+        await user.save();
+
+        res.send({ message: "Confirmation number is correct" });
+    } else {
+        res.send({ message: "Invalid confirmation number" });
+    }
 });
 
 
@@ -257,7 +293,7 @@ router.post('/forgot-password', async (req, res) =>
 // Reset password endpoint
 router.post('/reset-password', async (req, res) => 
 {
-  // Get the token and new password from the request body
+  // Get the username and password from request body
   const { username, newPassword } = req.body;
 
   // Find the user with the provided token
@@ -278,39 +314,25 @@ router.post('/reset-password', async (req, res) =>
     return res.status(400).send({ message: 'Please enter a username'});
   }
 
-
   // If no user is found, return an error
   if (!user) 
   {
     return res.status(400).send({ message: 'Inavlid Username' });
   }
 
+  if (!user.resetConfirm)
+  {
+    return res.status(400).send({ message: 'Must enter confirmation number before resetting password'});
+  }
+
   // Password complexity check
-  if (newPassword.length < 7 || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) 
+  if (newPassword.length < 7 || !/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) 
   {
     return res.status(400).send({ message: "Password does not meet complexity requirements" });
   }
 
-  /*
-    if (user.resetConfirm !== true)
-    {
-        return res.status(400).send({ message: 'Please confirm your email to reset password'});
-    }
-  */
-
-  // If the token has expired, return an error
-  if (Date.now() > user.resetPasswordTokenExpires)
-  {
-    return res.status(400).send({ message: "Token has expired, please request a new one"});
-  }
-
-  // Hash the new password
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
-
   // Update the user's password and clear the reset token and expiration
-  user.password = hashedPassword;
-  user.resetPasswordToken = undefined;
-  user.resetPasswordTokenExpires = undefined;
+  user.password = req.body.newPassword;
 
   // Save the updated user to the database
   await user.save();
@@ -346,56 +368,74 @@ router.patch('/edit-recipe', async (req, res) =>
     await recipe.save();
 })
 
+// favorites matched with username and idMeal
 
-router.get('/favorite-recipe/:id', async (req, res) =>
+router.get('/favorite-recipe/:username', async (req, res) => 
 {
+    // get the username from the request parameters
+    const { username } = req.params;
 
-    // get the user's favorite recipes
-    const favorites_json = await Favorites.find({userId: req.params.id});
-
-    // send the favorites to the client
-    res.send(favorites_json);
-}
-)
-
-router.post('/favorite-recipe/', async (req, res) => {
-    const { username, recipeId } = req.body;
-
-    if (!username || !recipeId) {
-        return res.status(400).send({ error: 'userId and recipeId are required' });
-    }
-
-    try {
-        const favorite = new Favorites({ username, recipeId });
-        await favorite.save();
-        res.send(favorite);
-    } catch (error) {
-        console.error(error);   
-        res.status(500).send({ error: 'An error occurred while saving the favorite' });
-    }
-});
-
-
-router.post('/favorites', async (req, res) => {
-    const { username } = req.body;
-
-    if (!username) {
+    // if the username is not provided, return an error
+    if (!username) 
+    {
         return res.status(400).send({ error: 'username is required' });
     }
 
+    // find the user in the database
+    const user = await User.findOne({ username });
+
+    // if the user does not exist, return an error
+    if (!user) 
+    {
+        return res.status(404).send({ error: 'User not found' });
+    }
+
+    // get the user's favorite recipes
+    const favorites = await Favorites.find({ userId: user._id });
+
+    // if the user has no favorites, return an appropriate message
+    if (favorites.length === 0) 
+    {
+        return res.send({ message: 'No favorite recipes found for this user' });
+    }
+
+    // send the favorites to the client
+    res.send(favorites);
+});
+
+// Add a favorite recipe
+router.post('/favorite-recipe', async (req, res) => 
+{
+    // get the username and idMeal from the request body
+    const { username, idMeal } = req.body;
+
+    // if the username or idMeal are not provided, return an error
+    if (!username || !idMeal) 
+    {
+        return res.status(400).send({ error: 'username and idMeal are required' });
+    }
+
+    // find the user and the recipe in the database
+    const user = await User.findOne({ username });
+    const recipe = await Recipe.findOne({ 'meals.idMeal': idMeal });
+
+    /* if the user or the recipe do not exist, return an error
+    if (!user || !recipe) 
+    {
+        return res.status(404).send({ error: 'User or recipe not found' });
+    }
+    */
+
+    // create a new favorite object with the user's id and recipe's idMeal and save it to the database
     try {
-        const favorites = await Favorites.find({ username });
-        res.send(favorites);
+        const favorite = new Favorites({ userId: user._id, recipeId: idMeal });
+        await favorite.save();
+        res.send(favorite);
     } catch (error) {
         console.error(error);
-
-        res.status(500).send({ error: 'An error occurred while fetching favorites' });
+        res.status(500).send({ error: 'An error occurred while saving the favorite' });
     }
-}
-);
-
-
-
+});
 
 // Export the router
 module.exports = router;
