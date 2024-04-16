@@ -33,12 +33,12 @@ router.post('/signup', async (req, res) =>
         }
 
         // Check if the email already exists
-        let existingEmail = await User.findOne({ email });
+        // let existingEmail = await User.findOne({ email });
 
         // If the email already exists, return an error
-        if (existingEmail) {
-            return res.status(409).send({ message: "Email already in use" });
-        }
+        // if (existingEmail) {
+        //     return res.status(409).send({ message: "Email already in use" });
+        // }
 
         // Password complexity check
         if (password.length < 7 || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
